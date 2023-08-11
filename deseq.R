@@ -13,33 +13,40 @@ library(DESeq2)
 library(ggplot2)
 
 #dilate the first row if it is comments
-Counts <- read.delim("//nas/homes/RNASeq/matrix/matrix.csv", header = TRUE, row.names = 1, sep = "\t")
+Counts <- read.csv("//nas/homes/RNASeq/matrix/matrix.csv", header = TRUE, row.names = 1, sep = "\t")
+
+# Remove C1 & K4 from counts since they seem to be outlier from plotPCA
+library('dplyr')
+#Counts <- Counts %>% select(-c('C1','K4'))
+
+# change column names
+coldata <- data.frame(condition= factor(c("C","C","C","C","E","E","E","E","V","V","V","K","K","K","K")),row.names = c("C1","C2","C3","C4","ES1","ES2","ES3","ES4","ES_non_K1","ES_non_K2","ES_non_K3","K1","K2","K3","K4"))
+     #check if the names and orders match
+     all(colnames(Counts) %in% rownames(coldata))
+     all(colnames(Counts) == rownames(coldata))
+
+#get DESeq matrix
+dds <- DESeqDataSetFromMatrix(countData = Counts, colData = coldata, design = ~ condition)
 
 # filter out low expression gene
+keep <- rowSums(counts(dds)) >= 15
+dds <- dds[keep,]
 
-filtered <- Counts[which(rowSums(Counts) >50),]
 
-# change column name
-filtered <- setNames(filtered, c("C1","C2","C3","C4","ES1","ES2","ES3","ES4","ESnonK1","ESnonK2","ESnonK3","K1","K2","K3","K4"))
-     
-# define which is control/treatment
-condition <- factor(c("C","C","C","C","E","E","E","E","V","V","V","K","K","K","K"))
+# set reference
+dds$condition <- relevel(dds$condition, ref = "C")
 
-coldata <- data.frame(row.names = colnames(filtered),condition)
-
-dds <- DESeqDataSetFromMatrix(countData = filtered, colData = coldata, design = ~condition)
-
-dds <- DESeq(dds)
-
-vsdata <- vst(dds, blind = FALSE)
+#run DESeq
+dds <- DESeq(dds, betaPrior = FALSE)
 
 #quality control
-plotPCA(vsdata, intgroup = "condition")
+vsdata <- vst(dds, blind = FALSE)
+plotPCA(vsdata, intgroup = "condition", returnData = TRUE)
 
 plotDispEsts(dds)
 
 # compare between samples, 2 at a time
-res <- results(dds, contrast = c("condition","E","K"))
+res<- results(dds, c("condition", "K", "C"))
 
 # take out the significant gene
 sigs <- na.omit(res)
@@ -60,7 +67,7 @@ library("org.Mm.eg.db")
 sigs.df <- as.data.frame(sigs)
 sigs.df$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigs.df), keytype = "ENSEMBL", column = "SYMBOL")
 
-filtered$symbol <- mapIds(org.Mm.eg.db, keys = rownames(filtered), keytype = "ENSEMBL", column = "SYMBOL")
+dds$symbol <- mapIds(org.Mm.eg.db, keys = rownames(dds), keytype = "ENSEMBL", column = "SYMBOL")
 
 #heatmap
 if (!require("BiocManager", quietly = TRUE))
@@ -81,14 +88,30 @@ colnames(mat.z) <- rownames(coldata)
 labels <- sigs.df$symbol
 
 
-hm.sigs <- Heatmap(mat.z, column_order = rownames(coldata), cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score") +
+hm.sigs <- Heatmap(mat.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES4','ES_non_K1','ES_non_K2','ES_non_K3'), cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score") +
   rowAnnotation(labels = anno_text(labels, which = "row"), 
                 width = max(grobWidth(textGrob(labels))))
 draw(hm.sigs, gap = unit(1, "cm"))
 
 # add annotation "https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html"
 
+sigsKvsE.df <- as.data.frame(sigsKvsE)
+sigsKvsE.df$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigsKvsE.df), keytype = "ENSEMBL", column = "SYMBOL")
 
+matKvsE <- counts(dds, normalized = T)[rownames(sigsKvsE.df),]
+
+
+matKvsE.z <- t(apply(matKvsE, 1, scale))
+colnames(matKvsE.z) <- rownames(coldata)
+
+
+labels <- sigsKvsE.df$symbol
+
+
+hm.sigs <- Heatmap(matKvsE.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES4','ES_non_K1','ES_non_K2','ES_non_K3'), cluster_rows = T, column_labels = colnames(matKvsE.z),name = "Z-score") +
+  rowAnnotation(labels = anno_text(labels, which = "row"), 
+                width = max(grobWidth(textGrob(labels))))
+draw(hm.sigs, gap = unit(1, "cm"))
 
 
 
