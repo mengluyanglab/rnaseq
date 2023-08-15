@@ -13,7 +13,7 @@ library(DESeq2)
 library(ggplot2)
 
 #dilate the first row if it is comments
-Counts <- read.csv("//nas/homes/RNASeq/matrix/matrix.csv", header = TRUE, row.names = 1, sep = "\t")
+Counts <- read.csv("//nas.ltc.upinthecloud.info/homes/RNASeq/matrix/matrix.csv", header = TRUE, row.names = 1, sep = "\t")
 
 # Remove C1 & K4 from counts since they seem to be outlier from plotPCA
 library('dplyr')
@@ -46,8 +46,11 @@ plotPCA(vsdata, intgroup = "condition", returnData = TRUE)
 plotDispEsts(dds)
 
 # compare between samples, 2 at a time
-res<- results(dds, c("condition", "K", "C"))
+res<- results(dds, alpha = 0.05, contrast = c("condition", "K", "C"))
+summary(res)
+plotMA(res)
 
+# draw a heatmap
 # take out the significant gene
 sigs <- na.omit(res)
 sigs <- sigs[sigs$padj <0.05,]
