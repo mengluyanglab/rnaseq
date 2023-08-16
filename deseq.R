@@ -17,10 +17,10 @@ Counts <- read.csv("//nas.ltc.upinthecloud.info/homes/RNASeq/matrix/matrix.csv",
 
 # Remove C1 & K4 from counts since they seem to be outlier from plotPCA
 library('dplyr')
-#Counts <- Counts %>% select(-c('C1','K4'))
+Counts <- Counts %>% select(-c('C1','K4','ES4'))
 
 # change column names
-coldata <- data.frame(condition= factor(c("C","C","C","C","E","E","E","E","V","V","V","K","K","K","K")),row.names = c("C1","C2","C3","C4","ES1","ES2","ES3","ES4","ES_non_K1","ES_non_K2","ES_non_K3","K1","K2","K3","K4"))
+coldata <- data.frame(condition= factor(c("C","C","C","E","E","E","V","V","V","K","K","K")),row.names = c("C2","C3","C4","ES1","ES2","ES3","ES_non_K1","ES_non_K2","ES_non_K3","K1","K2","K3"))
      #check if the names and orders match
      all(colnames(Counts) %in% rownames(coldata))
      all(colnames(Counts) == rownames(coldata))
@@ -29,7 +29,7 @@ coldata <- data.frame(condition= factor(c("C","C","C","C","E","E","E","E","V","V
 dds <- DESeqDataSetFromMatrix(countData = Counts, colData = coldata, design = ~ condition)
 
 # filter out low expression gene
-keep <- rowSums(counts(dds)) >= 15
+keep <- rowSums(counts(dds)) >= 12
 dds <- dds[keep,]
 
 
@@ -68,7 +68,14 @@ library("AnnotationDbi")
 library("org.Mm.eg.db")
 
 sigs.df <- as.data.frame(sigs)
-sigs.df$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigs.df), keytype = "ENSEMBL", column = "SYMBOL")
+# filter the gene set to select the most differently expressed gene to the heatmap
+sigs.df1 <- sigs.df[(sigs.df$baseMean > 100) & (abs(sigs.df$log2FoldChange) > 1.75),]
+
+
+sigs.df1$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigs.df1), keytype = "ENSEMBL", column = "SYMBOL")
+
+# Filter out N/A symbol
+sigs.df1 <- sigs.df1[!is.na(sigs.df1$symbol),]
 
 dds$symbol <- mapIds(org.Mm.eg.db, keys = rownames(dds), keytype = "ENSEMBL", column = "SYMBOL")
 
@@ -81,23 +88,31 @@ BiocManager::install("ComplexHeatmap")
 
 library(ComplexHeatmap)
 
-mat <- counts(dds, normalized = T)[rownames(sigs.df),]
+mat <- counts(dds, normalized = T)[rownames(sigs.df1),]
 
 
 mat.z <- t(apply(mat, 1, scale))
 colnames(mat.z) <- rownames(coldata)
 
 
-labels <- sigs.df$symbol
+labels <- sigs.df1$symbol
 
 
-hm.sigs <- Heatmap(mat.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES4','ES_non_K1','ES_non_K2','ES_non_K3'), cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score") +
+hm.sigs <- Heatmap(mat.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES_non_K1','ES_non_K2','ES_non_K3'), 
+                   cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score", 
+                   width = ncol(mat.z)*unit(20, "mm"),
+                   height = nrow(mat.z)*unit(5, "mm")
+                   ) +
   rowAnnotation(labels = anno_text(labels, which = "row"), 
-                width = max(grobWidth(textGrob(labels))))
-draw(hm.sigs, gap = unit(1, "cm"))
+                width = max(grobWidth(textGrob(labels))
+                ))
+draw(hm.sigs, gap = unit(0.1, "cm"))
+
+
 
 # add annotation "https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html"
 
+# another comparison
 sigsKvsE.df <- as.data.frame(sigsKvsE)
 sigsKvsE.df$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigsKvsE.df), keytype = "ENSEMBL", column = "SYMBOL")
 
@@ -116,5 +131,8 @@ hm.sigs <- Heatmap(matKvsE.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES
                 width = max(grobWidth(textGrob(labels))))
 draw(hm.sigs, gap = unit(1, "cm"))
 
+# GO 
+BiocManager::install("clusterProfiler")
 
+library(clusterProfiler)
 
