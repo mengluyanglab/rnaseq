@@ -16,6 +16,7 @@ library(ggplot2)
 Counts <- read.csv("//nas.ltc.upinthecloud.info/homes/RNASeq/matrix/matrix.csv", header = TRUE, row.names = 1, sep = "\t")
 
 # Remove C1 & K4 from counts since they seem to be outlier from plotPCA
+install.packages("dplyr")
 library('dplyr')
 Counts <- Counts %>% select(-c('C1','K4','ES4'))
 
@@ -50,7 +51,12 @@ res<- results(dds, alpha = 0.05, contrast = c("condition", "K", "C"))
 summary(res)
 plotMA(res)
 
+res1<- results(dds, alpha = 0.05, contrast = c("condition", "E", "K"))
+summary(res1)
+plotMA(res1)
+
 # draw a heatmap
+
 # take out the significant gene
 sigs <- na.omit(res)
 sigs <- sigs[sigs$padj <0.05,]
@@ -68,6 +74,9 @@ library("AnnotationDbi")
 library("org.Mm.eg.db")
 
 sigs.df <- as.data.frame(sigs)
+
+sigsKvE.df <- as.data.frame(sigs1)
+
 # filter the gene set to select the most differently expressed gene to the heatmap
 sigs.df1 <- sigs.df[(sigs.df$baseMean > 100) & (abs(sigs.df$log2FoldChange) > 1.75),]
 
@@ -112,27 +121,83 @@ draw(hm.sigs, gap = unit(0.1, "cm"))
 
 # add annotation "https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html"
 
-# another comparison
-sigsKvsE.df <- as.data.frame(sigsKvsE)
-sigsKvsE.df$symbol <- mapIds(org.Mm.eg.db, keys = rownames(sigsKvsE.df), keytype = "ENSEMBL", column = "SYMBOL")
-
-matKvsE <- counts(dds, normalized = T)[rownames(sigsKvsE.df),]
-
-
-matKvsE.z <- t(apply(matKvsE, 1, scale))
-colnames(matKvsE.z) <- rownames(coldata)
-
-
-labels <- sigsKvsE.df$symbol
-
-
-hm.sigs <- Heatmap(matKvsE.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES4','ES_non_K1','ES_non_K2','ES_non_K3'), cluster_rows = T, column_labels = colnames(matKvsE.z),name = "Z-score") +
-  rowAnnotation(labels = anno_text(labels, which = "row"), 
-                width = max(grobWidth(textGrob(labels))))
-draw(hm.sigs, gap = unit(1, "cm"))
+# get row na   .names(sigsKvE.df),file='sigsKvE-rownames.csv',quote=FALSE,row.names=FALSE, col.names=FALSE)
 
 # GO 
 BiocManager::install("clusterProfiler")
 
 library(clusterProfiler)
+library("AnnotationDbi")
+library("org.Mm.eg.db")
 
+if (!("msigdbr" %in% installed.packages())) {
+  BiocManager::install("msigdbr", update = FALSE)
+}
+
+library(msigdbr)
+
+# To use %>%
+install.packages("magrittr")
+library(magrittr)
+
+msigdbr_species()
+mm_hallmark_sets <- msigdbr(species = "Mus musculus", category = "H")
+mm_C5_sets <- msigdbr(species = "Mus musculus", category = "C5")
+
+head(mm_hallmark_sets)
+keytypes(org.Mm.eg.db)
+
+# Create a mapped data frame
+dge_mapped_df <- data.frame(
+    gene_symbol = mapIds(
+    # Replace with annotation package for the organism relevant to your data
+    org.Mm.eg.db,
+    keys = rownames(sigs.df),
+    # Replace with the type of gene identifiers in your data
+    keytype = "ENSEMBL",
+    # Replace with the type of gene identifiers you would like to map to
+    column = "SYMBOL",
+    # This will keep only the first mapped value for each Ensembl ID
+    multiVals = "first"
+  )
+) %>%
+dplyr::filter(!is.na(gene_symbol)) %>%
+# Make an `Ensembl` column to store the rownames
+tibble::rownames_to_column("Ensembl") %>% 
+## Now let's join the rest of the expression data
+dplyr::inner_join(tibble::rownames_to_column(sigs.df, var="Ensembl"), by = "Ensembl")
+
+#named vector ranked based on the log2 fold change values
+lfc_vector <- dge_mapped_df$log2FoldChange
+names(lfc_vector) <- dge_mapped_df$gene_symbol
+
+# sort log2foldchange in decending order
+lfc_vector <- sort(lfc_vector, decreasing = TRUE)
+
+# Set the seed so our results are reproducible:
+set.seed(2023)
+
+gsea_results <- GSEA(
+  geneList = lfc_vector, # Ordered ranked gene list
+  minGSSize = 25, # Minimum gene set size
+  maxGSSize = 500, # Maximum gene set set
+  pvalueCutoff = 0.05, # p-value cutoff
+  eps = 1e-10, # Boundary for calculating the p value
+  seed = TRUE, # Set seed to make results reproducible
+  pAdjustMethod = "BH", # Benjamini-Hochberg correction
+  TERM2GENE = dplyr::select(
+    mm_C5_sets,
+    gs_name,
+    gene_symbol
+  )
+)
+
+head(gsea_results@result)
+
+#Find upregulation gene list
+#genes_to_test <- rownames(sigs[sigs$log2FoldChange > 0,])
+
+#GO_results <- enrichGO(gene = genes_to_test, OrgDb = "org.Mm.eg.db", keyType = "ENSEMBL", ont = "BP")
+#as.data.frame(GO_results)
+
+#fit <- plot(barplot(GO_results, showCategory = 20))
