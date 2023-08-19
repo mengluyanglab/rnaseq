@@ -179,10 +179,9 @@ set.seed(2023)
 
 gsea_results <- GSEA(
   geneList = lfc_vector, # Ordered ranked gene list
-  minGSSize = 25, # Minimum gene set size
-  maxGSSize = 500, # Maximum gene set set
+  minGSSize = 5, # Minimum gene set size
+  maxGSSize = 20000, # Maximum gene set set
   pvalueCutoff = 0.05, # p-value cutoff
-  eps = 1e-10, # Boundary for calculating the p value
   seed = TRUE, # Set seed to make results reproducible
   pAdjustMethod = "BH", # Benjamini-Hochberg correction
   TERM2GENE = dplyr::select(
@@ -193,11 +192,31 @@ gsea_results <- GSEA(
 )
 
 head(gsea_results@result)
+gsea_result_df <- gsea_results@result
+gsea_result_sig <- gsea_result_df[gsea_result_df$p.adjust < 0.2,]
 
 #Find upregulation gene list
-#genes_to_test <- rownames(sigs[sigs$log2FoldChange > 0,])
+genes_to_test <- rownames(sigs[sigs$log2FoldChange > 0,])
 
-#GO_results <- enrichGO(gene = genes_to_test, OrgDb = "org.Mm.eg.db", keyType = "ENSEMBL", ont = "BP")
+GO_results <- enrichGO(gene = lfc_vector, OrgDb = "org.Mm.eg.db", keyType = "ENSEMBL", ont = "BP")
+
 #as.data.frame(GO_results)
 
 #fit <- plot(barplot(GO_results, showCategory = 20))
+
+# import From David
+david_KvE <- read.delim('C:/Users/yangm/R-Local/rnaseq/KvE_down.txt')
+# filter p.adj < 0.05
+david_KvE_sig <- david_KvE[david_KvE$Benjamini < 0.05,]
+# make a dot plot
+david_KvE_sig$Pathway1 <- sapply(strsplit(david_KvE_sig$Pathway,':'), tail, 1)
+# c('Acute myeloid leukemia', 'Relaxin signaling pathway', 'Focal adhesion', 'Proteoglycans in cancer', 'Chemokine signaling pathway', 'Ras signaling pathway', 'PI3K-Akt signaling pathway', 'Disordered')
+# c('Disordered','PI3K-Akt signaling pathway','Ras signaling pathway','Chemokine signaling pathway','Proteoglycans in cancer','Focal adhesion', 'Relaxin signaling pathway', 'Acute myeloid leukemia')
+david_KvE_sig$Pathway2 <- factor(david_KvE_sig$Pathway1, levels=c('Disordered','PI3K-Akt signaling pathway','Ras signaling pathway','Chemokine signaling pathway','Proteoglycans in cancer','Focal adhesion', 'Relaxin signaling pathway', 'Acute myeloid leukemia'))
+
+ggplot(david_KvE_sig, aes(y = Pathway2, x = Fold.Enrichment, size=Count, color = Benjamini)) + 
+  geom_point() +
+  scale_size(range=c(6,10)) +
+  labs(color = "p-adj.") +
+  theme(axis.title.y=element_blank())
+ 
