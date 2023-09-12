@@ -97,27 +97,62 @@ BiocManager::install("ComplexHeatmap")
 
 library(ComplexHeatmap)
 
-mat <- counts(dds, normalized = T)[rownames(sigs.df1),]
+mat <- counts(dds, normalized = T)[rownames(sigsKvE.df1),]
 
 
 mat.z <- t(apply(mat, 1, scale))
 colnames(mat.z) <- rownames(coldata)
 
 
-labels <- sigs.df1$symbol
+labels <- sigsKvE.df1$symbol
 
 
 hm.sigs <- Heatmap(mat.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES_non_K1','ES_non_K2','ES_non_K3'), 
                    cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score", 
-                   width = ncol(mat.z)*unit(20, "mm"),
-                   height = nrow(mat.z)*unit(5, "mm")
+                   width = ncol(mat.z)*unit(15, "mm"),
+                   height = nrow(mat.z)*unit(2, "mm")
                    ) +
   rowAnnotation(labels = anno_text(labels, which = "row"), 
                 width = max(grobWidth(textGrob(labels))
                 ))
 draw(hm.sigs, gap = unit(0.1, "cm"))
 
+#Making volcano plot using (https://github.com/kevinblighe/EnhancedVolcano)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
 
+BiocManager::install("EnhancedVolcano")
+# this depend on ggplot2 and ggrepel, so install ggrepel, and read ggplot2
+install.packages("ggrepel")
+
+library("ggrepel")
+library("EnhancedVolcano")
+
+#Annotate gene symbols to res
+res1$symbol <- mapIds(org.Mm.eg.db, keys = rownames(res1), keytype = "ENSEMBL", column = "SYMBOL")
+res1 <- res1[!is.na(res1$symbol),]
+
+
+EnhancedVolcano(res1,
+                lab = res1$symbol,
+                x = 'log2FoldChange',
+                y = 'padj',
+                selectLab = c('Camk1','Map3k9','Il17rb',
+                              'Akt1','Hspg2','Mbp','DUSP1','Slc6a12','Slc39a12'),
+                xlab = bquote(~Log[2]~ 'fold change'),
+                title = "ES vs Sham",
+                pCutoff = 10e-2,
+                pointSize = 2.0,
+                labSize = 5.0,
+                col=c('black', 'black', 'black', 'red2'),
+                colAlpha = 1,
+                drawConnectors = TRUE,
+                widthConnectors = 0.75,
+                legendLabels=c('Not sig.','Log (base 2) FC','adj-p',
+                               'adj-p & Log (base 2) FC'),
+                legendPosition = 'right',
+                legendLabSize = 16,
+                legendIconSize = 5.0)
 
 # add annotation "https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html"
 
@@ -198,9 +233,9 @@ gsea_result_sig <- gsea_result_df[gsea_result_df$p.adjust < 0.2,]
 #Find upregulation gene list
 genes_to_test <- rownames(sigs[sigs$log2FoldChange > 0,])
 
-GO_results <- enrichGO(gene = lfc_vector, OrgDb = "org.Mm.eg.db", keyType = "ENSEMBL", ont = "BP")
+GO_results <- enrichGO(gene = genes_to_test, OrgDb = "org.Mm.eg.db", keyType = "ENSEMBL", ont = "BP")
 
-#as.data.frame(GO_results)
+as.data.frame(GO_results)
 
 #fit <- plot(barplot(GO_results, showCategory = 20))
 
@@ -219,4 +254,6 @@ ggplot(david_KvE_sig, aes(y = Pathway2, x = Fold.Enrichment, size=Count, color =
   scale_size(range=c(6,10)) +
   labs(color = "p-adj.") +
   theme(axis.title.y=element_blank())
+
+
  
