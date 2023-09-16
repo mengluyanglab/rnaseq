@@ -88,7 +88,7 @@ sigs.df1 <- sigs.df1[!is.na(sigs.df1$symbol),]
 
 dds$symbol <- mapIds(org.Mm.eg.db, keys = rownames(dds), keytype = "ENSEMBL", column = "SYMBOL")
 
-#heatmap
+#heatmap, see arguments at https://jokergoo.github.io/ComplexHeatmap-reference/book/a-single-heatmap.html
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 
@@ -107,15 +107,18 @@ colnames(mat.z) <- rownames(coldata)
 labels <- sigsKvE.df1$symbol
 
 
-hm.sigs <- Heatmap(mat.z, column_order = c('C2',"C3",'C4','K1','K2','K3','ES1','ES2','ES3','ES_non_K1','ES_non_K2','ES_non_K3'), 
-                   cluster_rows = T, column_labels = colnames(mat.z),name = "Z-score", 
-                   width = ncol(mat.z)*unit(15, "mm"),
-                   height = nrow(mat.z)*unit(2, "mm")
-                   ) +
-  rowAnnotation(labels = anno_text(labels, which = "row"), 
-                width = max(grobWidth(textGrob(labels))
+hm.sigsVvC <- Heatmap(matVvC.z, column_order = c('C2',"C3",'C4','ES_non_K1','ES_non_K2','ES_non_K3','K1','K2','K3','ES1','ES2','ES3'), 
+                      cluster_rows = T, column_labels = colnames(matVvC.z),name = "Z-score",
+                      column_names_side = "top",column_names_rot = 45,
+                      #column_split = factor(rep(c("Ctrl", "ES","Debr","ES_Debr"), 3)),
+                      width = ncol(matVvC.z)*unit(10, "mm"),
+                      height = nrow(matVvC.z)*unit(4, "mm")
+) +
+  rowAnnotation(labels = anno_text(labels, which = "row"),
+               width = max(grobWidth(textGrob(labels))
                 ))
-draw(hm.sigs, gap = unit(0.1, "cm"))
+
+draw(hm.sigsVvC, gap = unit(0.1, "cm"))
 
 #Making volcano plot using (https://github.com/kevinblighe/EnhancedVolcano)
 if (!require("BiocManager", quietly = TRUE))
