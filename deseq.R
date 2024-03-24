@@ -97,28 +97,103 @@ BiocManager::install("ComplexHeatmap")
 
 library(ComplexHeatmap)
 
-mat <- counts(dds, normalized = T)[rownames(sigsKvE.df1),]
+my_plot <- function(dds_in_function) {
 
+  mat <- counts(dds_in_function, normalized = T)[rownames(sigsVvC.df1),]
+  
+  
+  mat.z <- t(apply(mat, 1, scale))
+  colnames(mat.z) <- rownames(coldata)
+  
+  
+  matzgenes <- c('ENSMUSG00000038539','ENSMUSG00000064356','ENSMUSG00000069806','ENSMUSG00000004044',
+                 'ENSMUSG00000000183','ENSMUSG00000025498',
+                'ENSMUSG00000036466','ENSMUSG00000050578','ENSMUSG00000005800','ENSMUSG00000032741',
+                'ENSMUSG00000032495','ENSMUSG00000039254','ENSMUSG00000044709','ENSMUSG00000036840',
+                'ENSMUSG00000029162','ENSMUSG00000075028','ENSMUSG00000039021','ENSMUSG00000020593','ENSMUSG00000033009',
+                'ENSMUSG00000020783','ENSMUSG00000041528','ENSMUSG00000028621','ENSMUSG00000088088','ENSMUSG00000040412',
+                'ENSMUSG00000065947','ENSMUSG00000056328','ENSMUSG00000044033',
+                'ENSMUSG00000041986','ENSMUSG00000029683')
+  labels <- c('Atf5','ATP8','Cacng7','Cavin1','Fgf6','Irf7','Megf11','Mmp13','Mmp8','Tpcn1','Lrrc2','Pomt1','Gemin7','Siah1a',
+              'Khk','Prdm11','Ttc16','Lpin1','Ogfod1','Ncbp3','Rnf123','Cyb5rl','Rmrp','Elapor1','ND4L','Myh1','Ccdc141',
+              'Elmod1','Lmod2') 
+  
+  mat.z.filtered <- mat.z[which(rownames(mat.z) %in% matzgenes),]
+  
+  sigsVvC.df1_filtered <- sigsVvC.df1[which(rownames(sigsVvC.df1) %in% matzgenes),]
 
-mat.z <- t(apply(mat, 1, scale))
-colnames(mat.z) <- rownames(coldata)
+  # mat.z.filtered <- mat.z
+  # labels <- sigsVvC.df1$symbol
+  labels <- sigsVvC.df1_filtered$symbol
+  
+  hm.sigsVvC <- Heatmap(mat.z.filtered, column_order = c('C2',"C3",'C4','ES_non_K1','ES_non_K2','ES_non_K3','K1','K2','K3','ES1','ES2','ES3'), 
+                        #row_order = order(),
+                        cluster_rows = T, column_labels = colnames(mat.z.filtered),name = "Z-score",
+                        column_names_side = "top",column_names_rot = 45,
+                        #column_split = factor(rep(c("Ctrl", "ES","Debr","ES_Debr"), 3)),
+                        width = ncol(mat.z.filtered)*unit(10, "mm"),
+                        height = nrow(mat.z.filtered)*unit(4, "mm")
+  ) +
+    rowAnnotation(labels = anno_text(labels, which = "row"),
+                 width = max(grobWidth(textGrob(labels))
+                  ))
+  
+  draw(hm.sigsVvC, heatmap_legend_side = "left", gap = unit(0.1, "cm"))
 
+}
 
-labels <- sigsKvE.df1$symbol
+my_plot_xjj <- function(dds_xjj) {
+  
+  matzgenes <- c('ENSMUSG00000038539','ENSMUSG00000064356','ENSMUSG00000069806','ENSMUSG00000004044',
+                 'ENSMUSG00000000183','ENSMUSG00000025498',
+                 'ENSMUSG00000036466','ENSMUSG00000050578','ENSMUSG00000005800','ENSMUSG00000032741',
+                 'ENSMUSG00000032495','ENSMUSG00000039254','ENSMUSG00000044709','ENSMUSG00000036840',
+                 'ENSMUSG00000029162','ENSMUSG00000075028','ENSMUSG00000039021','ENSMUSG00000020593','ENSMUSG00000033009',
+                 'ENSMUSG00000020783','ENSMUSG00000041528','ENSMUSG00000028621','ENSMUSG00000088088','ENSMUSG00000040412',
+                 'ENSMUSG00000065947','ENSMUSG00000056328','ENSMUSG00000044033',
+                 'ENSMUSG00000041986','ENSMUSG00000029683')
+  #labels <- c('Atf5','ATP8','Cacng7','Cavin1','Fgf6','Irf7','Megf11','Mmp13','Mmp8','Tpcn1','Lrrc2','Pomt1','Gemin7','Siah1a',
+  #            'Khk','Prdm11','Ttc16','Lpin1','Ogfod1','Ncbp3','Rnf123','Cyb5rl','Rmrp','Elapor1','ND4L','Myh1','Ccdc141',
+  #            'Elmod1','Lmod2') 
+  
+  sigsVvC.df1_filtered <- sigsVvC.df1[which(rownames(sigsVvC.df1) %in% matzgenes),]
+  
+  
+  mat.xjj <- counts(dds_xjj, normalized = T)[rownames(sigsVvC.df1_filtered),]
+  
+  
+  mat.z.xjj <- t(apply(mat.xjj, 1, scale))
+  colnames(mat.z.xjj) <- rownames(coldata)
+  
+  
+  
+  
+  mat.z.filtered <- mat.z.xjj
+  
 
+  
+  # mat.z.filtered <- mat.z
+  # labels <- sigsVvC.df1$symbol
 
-hm.sigsVvC <- Heatmap(matVvC.z, column_order = c('C2',"C3",'C4','ES_non_K1','ES_non_K2','ES_non_K3','K1','K2','K3','ES1','ES2','ES3'), 
-                      cluster_rows = T, column_labels = colnames(matVvC.z),name = "Z-score",
-                      column_names_side = "top",column_names_rot = 45,
-                      #column_split = factor(rep(c("Ctrl", "ES","Debr","ES_Debr"), 3)),
-                      width = ncol(matVvC.z)*unit(10, "mm"),
-                      height = nrow(matVvC.z)*unit(4, "mm")
-) +
-  rowAnnotation(labels = anno_text(labels, which = "row"),
-               width = max(grobWidth(textGrob(labels))
-                ))
+  labels <- sigsVvC.df1_filtered$symbol
+  hm.sigsVvC <- Heatmap(mat.z.filtered, column_order = c('C2',"C3",'C4','ES_non_K1','ES_non_K2','ES_non_K3','K1','K2','K3','ES1','ES2','ES3'), 
+                        #row_order = order(),
+                        cluster_rows = T, column_labels = colnames(mat.z.filtered),name = "Z-score",
+                        column_names_side = "top",column_names_rot = 45,
+                        #column_split = factor(rep(c("Ctrl", "ES","Debr","ES_Debr"), 3)),
+                        width = ncol(mat.z.filtered)*unit(10, "mm"),
+                        height = nrow(mat.z.filtered)*unit(4, "mm")
+  ) +
+    rowAnnotation(labels = anno_text(labels, which = "row"),
+                  width = max(grobWidth(textGrob(labels))
+                  ))
+  
+  draw(hm.sigsVvC, heatmap_legend_side = "left", gap = unit(0.1, "cm"))
+  
+}
 
-draw(hm.sigsVvC, gap = unit(0.1, "cm"))
+my_plot(dds)
+my_plot_xjj(dds)
 
 #Making volcano plot using (https://github.com/kevinblighe/EnhancedVolcano)
 if (!require("BiocManager", quietly = TRUE))
