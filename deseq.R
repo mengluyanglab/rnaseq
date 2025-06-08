@@ -230,19 +230,28 @@ library("EnhancedVolcano")
 res1$symbol <- mapIds(org.Mm.eg.db, keys = rownames(res1), keytype = "ENSEMBL", column = "SYMBOL")
 res1 <- res1[!is.na(res1$symbol),]
 
+keyvals <- ifelse(
+  res1$pvalue < 0.05 & res1$log2FoldChange > 1, 'red',
+  ifelse(res1$pvalue < 0.05 & res1$log2FoldChange < -1, 'royalblue2',
+         'grey'))
+keyvals[is.na(keyvals)] <- 'grey'
+names(keyvals)[keyvals == 'red'] <- 'Up'
+names(keyvals)[keyvals == 'grey'] <- 'Non-sig'
+names(keyvals)[keyvals == 'royalblue2'] <- 'Down'
 
 EnhancedVolcano(res1,
                 lab = res1$symbol,
                 x = 'log2FoldChange',
-                y = 'padj',
-                selectLab = c('Camk1','Map3k9','Il17rb',
+                y = 'pvalue',
+                selectLab = c('Map3k9',
                               'Akt1','Hspg2','Mbp','DUSP1','Slc6a12','Slc39a12'),
                 xlab = bquote(~Log[2]~ 'fold change'),
                 title = "ES vs Sham",
-                pCutoff = 10e-2,
+                pCutoff = 0.05,
                 pointSize = 2.0,
                 labSize = 5.0,
-                col=c('grey86','deepskyblue2', 'chartreuse3', 'deeppink1'),
+                # col=c('grey86','deepskyblue2', 'chartreuse3', 'deeppink1'),
+                colCustom = keyvals,
                 colAlpha = 1,
                 drawConnectors = TRUE,
                 widthConnectors = 0.75,
@@ -255,6 +264,14 @@ EnhancedVolcano(res1,
 res$symbol <- mapIds(org.Mm.eg.db, keys = rownames(res), keytype = "ENSEMBL", column = "SYMBOL")
 res <- res[!is.na(res$symbol),]
 
+keyvals1 <- ifelse(
+  res$pvalue < 0.05 & res$log2FoldChange > 1, 'red',
+  ifelse(res$pvalue < 0.05 & res$log2FoldChange < -1, 'royalblue2',
+         'grey'))
+keyvals1[is.na(keyvals1)] <- 'grey'
+names(keyvals1)[keyvals1 == 'red'] <- 'Up'
+names(keyvals1)[keyvals1 == 'grey'] <- 'Non-sig'
+names(keyvals1)[keyvals1 == 'royalblue2'] <- 'Down'
 
 EnhancedVolcano(res,
                 lab = res$symbol,
@@ -263,11 +280,11 @@ EnhancedVolcano(res,
                 selectLab = c('Atp8a2','Atf5',
                               'Akt1','Gpr37','Mbp','Hspg2'),
                 xlab = bquote(~Log[2]~ 'fold change'),
-                title = "C vs K",
+                title = "Control vs Keratectomy",
                 pCutoff = 10e-2,
                 pointSize = 2.0,
                 labSize = 5.0,
-                col=c('grey86','deepskyblue2', 'chartreuse3', 'deeppink1'),
+                colCustom = keyvals1,
                 colAlpha = 1,
                 drawConnectors = TRUE,
                 widthConnectors = 0.75,
@@ -278,8 +295,16 @@ EnhancedVolcano(res,
                 legendIconSize = 5.0)
 
 res2$symbol <- mapIds(org.Mm.eg.db, keys = rownames(res2), keytype = "ENSEMBL", column = "SYMBOL")
-res2 <- res2[!is.na(res$symbol),]
+res2 <- res2[!is.na(res2$symbol),]
 
+keyvals2 <- ifelse(
+  res2$pvalue < 0.05 & res2$log2FoldChange > 1, 'red',
+  ifelse(res2$pvalue < 0.05 & res2$log2FoldChange < -1, 'royalblue2',
+         'grey'))
+keyvals2[is.na(keyvals2)] <- 'grey'
+names(keyvals2)[keyvals2 == 'red'] <- 'Up'
+names(keyvals2)[keyvals2 == 'grey'] <- 'Non-sig'
+names(keyvals2)[keyvals2 == 'royalblue2'] <- 'Down'
 
 EnhancedVolcano(res2,
                 lab = res2$symbol,
@@ -288,11 +313,11 @@ EnhancedVolcano(res2,
                 selectLab = c('Mmp8',
                               'Mmp13','Megf11','Fgf6','Atf5','Cavin1','Tpcn1'),
                 xlab = bquote(~Log[2]~ 'fold change'),
-                title = "V vs C",
-                pCutoff = 10e-2,
+                title = "ES only vs Control",
+                pCutoff = 0.05,
                 pointSize = 2.0,
                 labSize = 5.0,
-                col=c('grey86','deepskyblue2', 'chartreuse3', 'deeppink1'),
+                colCustom = keyvals2,
                 colAlpha = 1,
                 drawConnectors = TRUE,
                 widthConnectors = 0.75,
